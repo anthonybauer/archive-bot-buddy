@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Telegram Video Archive</title>
+    <style>
+      :root { color-scheme: dark; --bg:#0e1116; --card:#161b22; --line:#262d38; --fg:#e6edf3; --mut:#8b949e; --ok:#3fb950; --bad:#f85149; --acc:#58a6ff; }
+      * { box-sizing: border-box; }
+      body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+      header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+      header strong { font-size:17px; }
+      nav a { color:var(--mut); text-decoration:none; margin-right:16px; }
+      nav a.active, nav a:hover { color:var(--acc); }
+      main { padding:24px; max-width:1000px; margin:0 auto; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+      .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+      .card h3 { margin:0 0 6px; font-size:13px; color:var(--mut); font-weight:500; text-transform:uppercase; letter-spacing:.04em; }
+      .big { font-size:26px; font-weight:600; }
+      table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+      th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+      th { color:var(--mut); font-weight:500; }
+      .ok { color:var(--ok); } .bad { color:var(--bad); }
+      code { background:#0b0f14; border:1px solid var(--line); padding:2px 6px; border-radius:6px; }
+      h2 { margin-top:28px; }
+      ol li, ul li { margin:6px 0; }
+      button { background:var(--acc); border:0; color:#04121f; font-weight:600; padding:6px 12px; border-radius:8px; cursor:pointer; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>📼 Telegram Video Archive</strong>
+      <nav>
+        <a class="{{ 'active' if page=='dashboard' }}" href="/">Dashboard</a>
+        <a class="{{ 'active' if page=='downloads' }}" href="/downloads">Downloads</a>
+        <a class="{{ 'active' if page=='settings' }}" href="/settings">Settings</a>
+        <a class="{{ 'active' if page=='setup' }}" href="/setup">Setup Guide</a>
+      </nav>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>
