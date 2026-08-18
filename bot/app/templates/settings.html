@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Settings</h2>
+<p>All settings live in the <code>.env</code> file next to <code>docker-compose.yml</code> on your server.
+Change a value there, then run <code>docker compose up -d</code> to apply it. Secret values are never shown here.</p>
+<table>
+  <tr><th>Variable</th><th>Current value</th><th>What it does</th></tr>
+  {% for name, value, desc in values %}
+  <tr><td><code>{{ name }}</code></td><td>{{ value }}</td><td>{{ desc }}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

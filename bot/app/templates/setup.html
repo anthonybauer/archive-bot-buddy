@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Setup Guide</h2>
+
+<h3>1. Add the bot to your channel</h3>
+<ol>
+  <li>Open Telegram and go to your private channel.</li>
+  <li>Tap the channel name at the top.</li>
+  <li>Tap <strong>Edit</strong> → <strong>Administrators</strong> → <strong>Add Administrator</strong>.</li>
+  <li>Search for {{ "@" ~ bot_username if bot_username else "your bot's username" }} and select it.</li>
+</ol>
+
+<h3>2. Permissions the bot needs</h3>
+<ul>
+  <li><strong>Post Messages</strong> — required, so it can upload videos.</li>
+  <li><strong>Delete Messages</strong> — required, so it can remove the original link post.</li>
+  <li><strong>Edit Messages</strong> — not required.</li>
+</ul>
+<p>Then tap the check mark to save.</p>
+
+<h3>3. Find your Channel ID</h3>
+<p>Post any message in the channel and refresh this page.</p>
+<table>
+  <tr><th>Channel name</th><th>Channel ID</th><th></th></tr>
+  {% for c in seen_channels %}
+  <tr><td>{{ c.title or "—" }}</td><td><code>{{ c.chat_id }}</code></td>
+  <td><button onclick="navigator.clipboard.writeText('{{ c.chat_id }}')">Copy</button></td></tr>
+  {% else %}
+  <tr><td colspan="3">No channel seen yet — post a message in your channel and refresh.</td></tr>
+  {% endfor %}
+</table>
+<p><strong>Copy this Channel ID into ALLOWED_CHANNEL_ID</strong> in your <code>.env</code> file, then run:</p>
+<p><code>docker compose up -d</code></p>
+
+<h3>4. Test it</h3>
+<p>Share an Instagram Reel link into your channel. Within a few seconds the bot uploads the video
+and deletes your link post. Check the <a href="/">Dashboard</a> if something goes wrong.</p>
+{% endblock %}

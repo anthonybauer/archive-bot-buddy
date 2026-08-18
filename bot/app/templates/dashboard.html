@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+  <div class="card"><h3>Bot status</h3><div class="big {{ 'ok' if state.bot_online else 'bad' }}">{{ "Online" if state.bot_online else "Offline" }}</div></div>
+  <div class="card"><h3>Telegram connection</h3><div class="big {{ 'ok' if state.telegram_ok else 'bad' }}">{{ "OK" if state.telegram_ok else "Error" }}</div>{% if state.telegram_error %}<small class="bad">{{ state.telegram_error }}</small>{% endif %}</div>
+  <div class="card"><h3>Channel ID</h3><div class="big">{{ channel_id if channel_id else "not set" }}</div></div>
+  <div class="card"><h3>Bot account</h3><div class="big">{{ "@" ~ bot_username if bot_username else "—" }}</div></div>
+</div>
+
+<div class="grid" style="margin-top:14px">
+  <div class="card"><h3>Downloads today</h3><div class="big">{{ stats.today }}</div></div>
+  <div class="card"><h3>Successful</h3><div class="big ok">{{ stats.success }}</div></div>
+  <div class="card"><h3>Failed</h3><div class="big bad">{{ stats.failed }}</div></div>
+  <div class="card"><h3>In queue / running</h3><div class="big">{{ state.queue_size }} / {{ state.active_downloads }}</div></div>
+</div>
+
+<div class="grid" style="margin-top:14px">
+  <div class="card"><h3>yt-dlp version</h3><div>{{ ytdlp_version }}</div></div>
+  <div class="card"><h3>FFmpeg available</h3><div class="{{ 'ok' if ffmpeg_ok else 'bad' }}">{{ "Yes" if ffmpeg_ok else "No" }}</div><small>{{ ffmpeg_version or "" }}</small></div>
+  <div class="card"><h3>Uptime</h3><div>{{ uptime }}</div></div>
+</div>
+
+{% if not channel_id %}
+<div class="card" style="margin-top:20px;border-color:#9e6a03">
+  <h3>Setup needed</h3>
+  <p>The bot is in <strong>safe setup mode</strong>: nothing will be downloaded until a channel ID is configured.</p>
+  {% if seen_channels %}
+    <p>Channels that posted to this bot so far:</p>
+    <table><tr><th>Channel name</th><th>Channel ID</th><th></th></tr>
+      {% for c in seen_channels %}
+      <tr><td>{{ c.title or "—" }}</td><td><code id="ch{{ loop.index }}">{{ c.chat_id }}</code></td>
+      <td><button onclick="navigator.clipboard.writeText('{{ c.chat_id }}')">Copy</button></td></tr>
+      {% endfor %}
+    </table>
+    <p><strong>Copy this Channel ID into ALLOWED_CHANNEL_ID</strong> in your <code>.env</code> file, then run <code>docker compose up -d</code> again.</p>
+  {% else %}
+    <p>Post any message in your channel, then refresh this page to see its Channel ID.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>Last 10 downloads</h2>
+<table>
+  <tr><th>Source</th><th>Title</th><th>Time (UTC)</th><th>Status</th><th>Error</th></tr>
+  {% for r in recent %}
+  <tr>
+    <td>{{ r.source or "—" }}</td><td>{{ r.media_title or "—" }}</td>
+    <td>{{ r.downloaded_at }}</td>
+    <td class="{{ 'ok' if r.status == 'success' else 'bad' }}">{{ r.status }}</td>
+    <td>{{ r.error or "" }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Nothing downloaded yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

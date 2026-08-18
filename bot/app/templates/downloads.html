@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Downloads</h2>
+<table>
+  <tr><th>#</th><th>Source</th><th>Title</th><th>URL</th><th>Time (UTC)</th><th>Status</th><th>Error</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.id }}</td><td>{{ r.source or "—" }}</td><td>{{ r.media_title or "—" }}</td>
+    <td style="max-width:280px;overflow-wrap:anywhere">{{ r.source_url }}</td>
+    <td>{{ r.downloaded_at }}</td>
+    <td class="{{ 'ok' if r.status == 'success' else 'bad' }}">{{ r.status }}</td>
+    <td>{{ r.error or "" }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">No downloads yet. Share a video link in your channel to get started.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
