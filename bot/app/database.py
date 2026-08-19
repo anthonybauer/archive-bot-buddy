@@ -37,7 +37,23 @@ CREATE TABLE IF NOT EXISTS processed_messages (
     created_at TEXT NOT NULL,
     PRIMARY KEY (chat_id, message_id)
 );
+
+CREATE TABLE IF NOT EXISTS channels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_channel_id INTEGER NOT NULL UNIQUE,
+    title TEXT,
+    username TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    detected_at TEXT NOT NULL,
+    approved_at TEXT,
+    last_activity_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_channels_status ON channels (status);
 """
+
+STATUSES = ("pending", "active", "disabled")
 
 
 def _now() -> str:
