@@ -3,7 +3,7 @@
 <div class="grid">
   <div class="card"><h3>Bot status</h3><div class="big {{ 'ok' if state.bot_online else 'bad' }}">{{ "Online" if state.bot_online else "Offline" }}</div></div>
   <div class="card"><h3>Telegram connection</h3><div class="big {{ 'ok' if state.telegram_ok else 'bad' }}">{{ "OK" if state.telegram_ok else "Error" }}</div>{% if state.telegram_error %}<small class="bad">{{ state.telegram_error }}</small>{% endif %}</div>
-  <div class="card"><h3>Channel ID</h3><div class="big">{{ channel_id if channel_id else "not set" }}</div></div>
+  <div class="card"><h3>Active channels</h3><div class="big">{{ channels | selectattr("status","equalto","active") | list | length }}</div><small><a href="/channels">Manage channels</a></small></div>
   <div class="card"><h3>Bot account</h3><div class="big">{{ "@" ~ bot_username if bot_username else "—" }}</div></div>
 </div>
 
@@ -20,22 +20,16 @@
   <div class="card"><h3>Uptime</h3><div>{{ uptime }}</div></div>
 </div>
 
-{% if not channel_id %}
+{% set pending = channels | selectattr("status","equalto","pending") | list %}
+{% if pending %}
 <div class="card" style="margin-top:20px;border-color:#9e6a03">
-  <h3>Setup needed</h3>
-  <p>The bot is in <strong>safe setup mode</strong>: nothing will be downloaded until a channel ID is configured.</p>
-  {% if seen_channels %}
-    <p>Channels that posted to this bot so far:</p>
-    <table><tr><th>Channel name</th><th>Channel ID</th><th></th></tr>
-      {% for c in seen_channels %}
-      <tr><td>{{ c.title or "—" }}</td><td><code id="ch{{ loop.index }}">{{ c.chat_id }}</code></td>
-      <td><button onclick="navigator.clipboard.writeText('{{ c.chat_id }}')">Copy</button></td></tr>
-      {% endfor %}
-    </table>
-    <p><strong>Copy this Channel ID into ALLOWED_CHANNEL_ID</strong> in your <code>.env</code> file, then run <code>docker compose up -d</code> again.</p>
-  {% else %}
-    <p>Post any message in your channel, then refresh this page to see its Channel ID.</p>
-  {% endif %}
+  <h3>Channels waiting for approval</h3>
+  <table><tr><th>Channel name</th><th>Channel ID</th></tr>
+    {% for c in pending %}
+    <tr><td>{{ c.title or "—" }}</td><td><code>{{ c.telegram_channel_id }}</code></td></tr>
+    {% endfor %}
+  </table>
+  <p>Open the <a href="/channels">Channels page</a> and click <strong>Allow</strong> to start archiving there.</p>
 </div>
 {% endif %}
 
