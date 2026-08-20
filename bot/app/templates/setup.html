@@ -18,7 +18,23 @@
 </ul>
 <p>Then tap the check mark to save.</p>
 
-<h3>3. Find your Channel ID</h3>
+<h3>3. Approve the channel</h3>
+<p>Post any message in the channel, then open <a href="/channels">Dashboard → Channels</a>.
+The channel appears under <strong>Pending</strong>. Click <strong>Allow</strong> — done.</p>
+
+<h3>How to add another Telegram channel</h3>
+<ol>
+  <li>Create or open the Telegram channel.</li>
+  <li>Add this same bot as Administrator.</li>
+  <li>Give it <strong>Post Messages</strong> and <strong>Delete Messages</strong>.</li>
+  <li>Post any message in that channel.</li>
+  <li>Open <a href="/channels">Dashboard → Channels</a>.</li>
+  <li>The new channel appears under <strong>Pending</strong>.</li>
+  <li>Click <strong>Allow</strong>.</li>
+</ol>
+<p>No SSH, no <code>.env</code> editing, no Docker restart.</p>
+
+<h3>Channels seen so far</h3>
 <p>Post any message in the channel and refresh this page.</p>
 <table>
   <tr><th>Channel name</th><th>Channel ID</th><th></th></tr>
@@ -29,8 +45,7 @@
   <tr><td colspan="3">No channel seen yet — post a message in your channel and refresh.</td></tr>
   {% endfor %}
 </table>
-<p><strong>Copy this Channel ID into ALLOWED_CHANNEL_ID</strong> in your <code>.env</code> file, then run:</p>
-<p><code>docker compose up -d</code></p>
+<p>Approve channels on the <a href="/channels">Channels page</a>.</p>
 
 <h3>4. Test it</h3>
 <p>Share an Instagram Reel link into your channel. Within a few seconds the bot uploads the video

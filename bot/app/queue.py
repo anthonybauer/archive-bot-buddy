@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Awaitable, Callable
+from uuid import uuid4
 
 log = logging.getLogger("queue")
 
@@ -15,6 +16,7 @@ class Job:
     chat_id: int
     message_id: int
     urls: list[str]
+    job_id: str = field(default_factory=lambda: uuid4().hex[:12])
 
 
 class DownloadQueue:
@@ -40,7 +42,13 @@ class DownloadQueue:
 
     async def put(self, job: Job) -> None:
         await self._queue.put(job)
-        log.info("Queued %s URL(s) from message %s", len(job.urls), job.message_id)
+        log.info(
+            "Queued job %s: %s URL(s) from message %s in channel %s",
+            job.job_id,
+            len(job.urls),
+            job.message_id,
+            job.chat_id,
+        )
 
     async def _run(self, index: int) -> None:
         while True:

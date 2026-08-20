@@ -60,6 +60,10 @@ class ArchiveBot:
     async def _on_channel_post(self, message: Message) -> None:
         chat = message.chat
         await self.db.remember_channel(chat.id, chat.title)
+        # Auto-discovery: unknown channels are stored as "pending" (never downloaded).
+        created = await self.db.touch_channel(chat.id, chat.title, getattr(chat, "username", None))
+        if created:
+            log.info("New channel detected and marked pending: %s (%s)", chat.title, chat.id)
         log.info("Channel post received from %s (%s)", chat.title, chat.id)
 
         # Loop protection: never react to our own uploads (they carry no URLs anyway).
@@ -71,13 +75,13 @@ class ArchiveBot:
         if not urls:
             return
 
-        if self.settings.allowed_channel_id is None:
-            log.warning(
-                "ALLOWED_CHANNEL_ID is not configured yet. Detected channel id %s", chat.id
+        status = await self.db.channel_status(chat.id)
+        if status != "active":
+            log.info(
+                "Channel %s is '%s' — ignoring URLs. Approve it on the Channels page.",
+                chat.id,
+                status or "pending",
             )
-            return
-        if chat.id != self.settings.allowed_channel_id:
-            log.info("Ignoring post from non-allowed chat %s", chat.id)
             return
 
         if not await self.db.claim_message(chat.id, message.message_id):
@@ -124,7 +128,7 @@ class ArchiveBot:
     async def _process_url(self, job: Job, url: str) -> tuple[bool, str]:
         normalized = normalize_url(url)
         if self.settings.skip_duplicates:
-            existing = await self.db.find_successful(normalized)
+            existing = await self.db.find_successful(normalized, job.chat_id)
             if existing:
                 log.info("Duplicate URL, already saved: %s", normalized)
                 await self._notify(job.chat_id, "Already saved ✅")

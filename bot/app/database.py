@@ -84,6 +84,7 @@ class Database:
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
         self._conn.commit()
+        self._migrate()
 
     async def _run(self, fn, *args: Any) -> Any:
         async with self._lock:
@@ -142,14 +143,24 @@ class Database:
         return await self._run(self._mark_message, chat_id, message_id)
 
     # --- reads ------------------------------------------------------------
-    def _find_success(self, normalized_url: str) -> sqlite3.Row | None:
+    def _find_success(self, normalized_url: str, chat_id: int | None) -> sqlite3.Row | None:
+        if chat_id is None:
+            return self._conn.execute(
+                "SELECT * FROM downloads WHERE normalized_url = ? AND status = 'success' LIMIT 1",
+                (normalized_url,),
+            ).fetchone()
         return self._conn.execute(
-            "SELECT * FROM downloads WHERE normalized_url = ? AND status = 'success' LIMIT 1",
-            (normalized_url,),
+            """SELECT * FROM downloads
+               WHERE normalized_url = ? AND telegram_channel_id = ? AND status = 'success'
+               LIMIT 1""",
+            (normalized_url, chat_id),
         ).fetchone()
 
-    async def find_successful(self, normalized_url: str) -> dict[str, Any] | None:
-        row = await self._run(self._find_success, normalized_url)
+    async def find_successful(
+        self, normalized_url: str, chat_id: int | None = None
+    ) -> dict[str, Any] | None:
+        """Duplicate lookup. Channel-specific when chat_id is given."""
+        row = await self._run(self._find_success, normalized_url, chat_id)
         return dict(row) if row else None
 
     def _recent(self, limit: int) -> Iterable[sqlite3.Row]:
@@ -182,3 +193,136 @@ class Database:
 
     async def seen_channels(self) -> list[dict[str, Any]]:
         return [dict(r) for r in await self._run(self._channels)]
+
+    # --- channel management -----------------------------------------------
+    def _migrate(self) -> None:
+        """Idempotent, non-destructive schema top-ups for older databases."""
+        cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(channels)")}
+        for name in ("username", "approved_at", "last_activity_at"):
+            if name not in cols:
+                self._conn.execute(f"ALTER TABLE channels ADD COLUMN {name} TEXT")
+        self._conn.commit()
+
+    def _upsert_channel(
+        self, chat_id: int, title: str | None, username: str | None, status: str
+    ) -> bool:
+        """Insert as `status` if unknown, else only refresh title/activity. True if new."""
+        now = _now()
+        row = self._conn.execute(
+            "SELECT id FROM channels WHERE telegram_channel_id = ?", (chat_id,)
+        ).fetchone()
+        if row is None:
+            self._conn.execute(
+                """INSERT INTO channels
+                   (telegram_channel_id, title, username, status, detected_at,
+                    approved_at, last_activity_at, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    chat_id,
+                    title,
+                    username,
+                    status,
+                    now,
+                    now if status == "active" else None,
+                    now,
+                    now,
+                    now,
+                ),
+            )
+            self._conn.commit()
+            return True
+        self._conn.execute(
+            """UPDATE channels SET title = COALESCE(?, title),
+                                   username = COALESCE(?, username),
+                                   last_activity_at = ?, updated_at = ?
+               WHERE telegram_channel_id = ?""",
+            (title, username, now, now, chat_id),
+        )
+        self._conn.commit()
+        return False
+
+    async def touch_channel(
+        self, chat_id: int, title: str | None = None, username: str | None = None
+    ) -> bool:
+        """Register activity; creates the channel as pending when unknown."""
+        return await self._run(self._upsert_channel, chat_id, title, username, "pending")
+
+    async def ensure_channel(
+        self,
+        chat_id: int,
+        title: str | None = None,
+        username: str | None = None,
+        status: str = "pending",
+    ) -> bool:
+        if status not in STATUSES:
+            raise ValueError(f"invalid status: {status}")
+        return await self._run(self._upsert_channel, chat_id, title, username, status)
+
+    def _get_channel(self, chat_id: int) -> sqlite3.Row | None:
+        return self._conn.execute(
+            "SELECT * FROM channels WHERE telegram_channel_id = ?", (chat_id,)
+        ).fetchone()
+
+    async def get_channel(self, chat_id: int) -> dict[str, Any] | None:
+        row = await self._run(self._get_channel, chat_id)
+        return dict(row) if row else None
+
+    async def channel_status(self, chat_id: int) -> str | None:
+        channel = await self.get_channel(chat_id)
+        return channel["status"] if channel else None
+
+    def _set_status(self, chat_id: int, status: str) -> bool:
+        now = _now()
+        cur = self._conn.execute(
+            """UPDATE channels
+               SET status = ?, updated_at = ?,
+                   approved_at = CASE WHEN ? = 'active' AND approved_at IS NULL
+                                      THEN ? ELSE approved_at END
+               WHERE telegram_channel_id = ?""",
+            (status, now, status, now, chat_id),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    async def set_channel_status(self, chat_id: int, status: str) -> bool:
+        if status not in STATUSES:
+            raise ValueError(f"invalid status: {status}")
+        return await self._run(self._set_status, chat_id, status)
+
+    def _remove_channel(self, chat_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM channels WHERE telegram_channel_id = ?", (chat_id,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    async def remove_channel(self, chat_id: int) -> bool:
+        """Deletes only the channel record; download history is preserved."""
+        return await self._run(self._remove_channel, chat_id)
+
+    def _list_channels(self) -> Iterable[sqlite3.Row]:
+        return self._conn.execute(
+            """SELECT c.*,
+                      (SELECT COUNT(*) FROM downloads d
+                         WHERE d.telegram_channel_id = c.telegram_channel_id) AS total,
+                      (SELECT COUNT(*) FROM downloads d
+                         WHERE d.telegram_channel_id = c.telegram_channel_id
+                           AND d.status = 'success') AS success,
+                      (SELECT COUNT(*) FROM downloads d
+                         WHERE d.telegram_channel_id = c.telegram_channel_id
+                           AND d.status = 'failed') AS failed
+               FROM channels c
+               ORDER BY CASE c.status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END,
+                        COALESCE(c.last_activity_at, c.detected_at) DESC"""
+        ).fetchall()
+
+    async def channels(self) -> list[dict[str, Any]]:
+        return [dict(r) for r in await self._run(self._list_channels)]
+
+    async def active_channel_ids(self) -> list[int]:
+        rows = await self._run(
+            lambda: self._conn.execute(
+                "SELECT telegram_channel_id FROM channels WHERE status = 'active'"
+            ).fetchall()
+        )
+        return [int(r["telegram_channel_id"]) for r in rows]
