@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Telegram Channels</h2>
+{% if message %}<p class="ok">{{ message }}</p>{% endif %}
+<p>Channels are managed here — you no longer need to edit <code>.env</code> or restart anything.</p>
+
+{% macro channel_table(rows, kind) %}
+<table>
+  <tr>
+    <th>Channel name</th><th>Channel ID</th><th>Status</th><th>Detected at</th>
+    <th>Last activity</th><th>Total</th><th>OK</th><th>Failed</th><th>Actions</th>
+  </tr>
+  {% for c in rows %}
+  <tr>
+    <td>{{ c.title or "—" }}{% if c.username %}<br><small>@{{ c.username }}</small>{% endif %}</td>
+    <td><code>{{ c.telegram_channel_id }}</code></td>
+    <td class="{{ 'ok' if c.status == 'active' else ('bad' if c.status == 'disabled' else '') }}">{{ c.status }}</td>
+    <td>{{ c.detected_at }}</td>
+    <td>{{ c.last_activity_at or "—" }}</td>
+    <td>{{ c.total }}</td><td class="ok">{{ c.success }}</td><td class="bad">{{ c.failed }}</td>
+    <td style="white-space:nowrap">
+      {% if c.status != 'active' %}
+      <form method="post" action="/channels/{{ c.telegram_channel_id }}/status" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="new_status" value="active">
+        <button type="submit">{{ "Allow" if c.status == 'pending' else "Re-enable" }}</button>
+      </form>
+      {% else %}
+      <form method="post" action="/channels/{{ c.telegram_channel_id }}/status" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="new_status" value="disabled">
+        <button type="submit">Disable</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/channels/{{ c.telegram_channel_id }}/remove" style="display:inline"
+            onsubmit="return confirm('Remove this channel from the list? Videos already uploaded to Telegram are not deleted.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Remove</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9">No {{ kind }} channels.</td></tr>
+  {% endfor %}
+</table>
+{% endmacro %}
+
+<h3>Pending channels</h3>
+<p>Detected automatically. Nothing is downloaded until you click <strong>Allow</strong>.</p>
+{{ channel_table(pending, "pending") }}
+
+<h3>Active channels</h3>
+{{ channel_table(active, "active") }}
+
+<h3>Disabled channels</h3>
+{{ channel_table(disabled, "disabled") }}
+
+<h3>Add / Allow a channel manually</h3>
+<form method="post" action="/channels/add" class="card" style="margin-top:12px;display:grid;gap:10px;max-width:460px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Channel ID<br><input name="channel_id" placeholder="-1001234567890" required
+    style="width:100%;padding:8px;border-radius:8px;border:1px solid #262d38;background:#0b0f14;color:#e6edf3"></label>
+  <label>Name (optional)<br><input name="title" placeholder="My Videos"
+    style="width:100%;padding:8px;border-radius:8px;border:1px solid #262d38;background:#0b0f14;color:#e6edf3"></label>
+  <div><button type="submit">Add and activate</button></div>
+</form>
+{% endblock %}
