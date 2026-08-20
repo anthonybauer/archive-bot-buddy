@@ -33,9 +33,16 @@ async def main() -> None:
     else:
         log.error("BOT_TOKEN is not set. Dashboard only — paste your token into .env and restart.")
 
-    if settings.allowed_channel_id is None:
+    # One-time, non-destructive migration: legacy .env channels become active in SQLite.
+    for chat_id in settings.bootstrap_channel_ids:
+        created = await db.ensure_channel(chat_id, status="active")
+        if created:
+            log.info("Imported channel %s from environment as ACTIVE", chat_id)
+
+    if not await db.active_channel_ids():
         log.warning(
-            "ALLOWED_CHANNEL_ID is not set. Safe setup mode: no downloads until it is configured."
+            "No active channels yet. Safe setup mode: post in your channel, then approve it "
+            "on the dashboard Channels page."
         )
 
     await asyncio.gather(*tasks)
