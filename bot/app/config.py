@@ -32,6 +32,7 @@ def _str(name: str, default: str = "") -> str:
 class Settings:
     bot_token: str
     allowed_channel_id: int | None
+    bootstrap_channel_ids: tuple[int, ...]
     delete_original: bool
     skip_duplicates: bool
     include_source_url: bool
@@ -71,6 +72,21 @@ def load_settings() -> Settings:
     except ValueError:
         channel_id = None
 
+    ids_raw = _str("ALLOWED_CHANNEL_IDS")
+    bootstrap: list[int] = []
+    if channel_id is not None:
+        bootstrap.append(channel_id)
+    for part in ids_raw.replace(";", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            value = int(part)
+        except ValueError:
+            continue
+        if value not in bootstrap:
+            bootstrap.append(value)
+
     data_dir = Path(_str("DATA_DIR", "/data"))
     downloads_dir = Path(_str("DOWNLOADS_DIR", "/downloads"))
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -79,6 +95,7 @@ def load_settings() -> Settings:
     return Settings(
         bot_token=_str("BOT_TOKEN"),
         allowed_channel_id=channel_id,
+        bootstrap_channel_ids=tuple(bootstrap),
         delete_original=_bool("DELETE_ORIGINAL", True),
         skip_duplicates=_bool("SKIP_DUPLICATES", True),
         include_source_url=_bool("INCLUDE_SOURCE_URL", False),
